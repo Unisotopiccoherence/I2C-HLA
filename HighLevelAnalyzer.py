@@ -7,32 +7,62 @@ from saleae.analyzers import HighLevelAnalyzer, AnalyzerFrame, StringSetting, Nu
 # High level analyzers must subclass the HighLevelAnalyzer class.
 class Hla(HighLevelAnalyzer):
 
-    # An optional list of types this analyzer produces, providing a way to customize the way frames are displayed in Logic 2.
+    # Define result types for display
     result_types = {
-        'mytype': {
-            'format': '{{data.new_data}}'
-        },
         'address': {
-            'format' : 'an address {{data.new_data}}'
+            'format': 'Device: {{data.name}}'
+        },
+        'flag': {
+            'format': 'Flag: {{data.status}}'
+        },
+        'instruction': {
+            'format': 'Instruction: {{data.op}}'
+        },
+        'fsm': {
+            'format': 'Current FSM state: {{data.state}}'
+        },
+        'other': {
+            'format': '{{data.new_data}}'
         }
     }
 
     def decode(self, frame: AnalyzerFrame):
-        '''
-        Process a frame from the input analyzer, and optionally return a single `AnalyzerFrame` or a list of `AnalyzerFrame`s.
 
-        The type and data values in `frame` will depend on the input analyzer.
-        '''
-
+        # Handle I2C address frame
         if frame.type == "address":
-            return AnalyzerFrame('address', frame.start_time, frame.end_time, {
-                'input_type': frame.type,
-                'new_data': frame.data['address']
+            addr = frame.data['address']
+            is_read = frame.data['read']   # True = read, False = write
+
+            if addr == 0x3C:
+                device_name = "Everest"
+                flag_status = "Pass"
+            else:
+                device_name = "Unknown"
+                flag_status = "Fail"
+
+            # Instruction type
+            instr = "Read" if is_read else "Write"
+
+            return [
+                AnalyzerFrame('address', frame.start_time, frame.end_time, {
+                    'name': f"{device_name} (0x{addr:02X})"
+                }),
+                AnalyzerFrame('flag', frame.start_time, frame.end_time, {
+                    'status': flag_status
+                }),
+                AnalyzerFrame('instruction', frame.start_time, frame.end_time, {
+                    'op': instr
+                })
+            ]
+
+        # Handle I2C data frame
+        if frame.type == "data":
+            data_value = frame.data['data']
+            return AnalyzerFrame('fsm', frame.start_time, frame.end_time, {
+                'state': f"0x{data_value:02X}"
             })
 
-
-        # Return the data frame itself
-        return AnalyzerFrame('mytype', frame.start_time, frame.end_time, {
-            'input_type': frame.type,
-            'new_data': 'mark was here'
+        # For any other frames
+        return AnalyzerFrame('other', frame.start_time, frame.end_time, {
+            'new_data': f"type={frame.type}"
         })
