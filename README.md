@@ -7,5 +7,4 @@
 3. Update this README
 4. Open the Logic app and publish your extension
 5. Create a Github release
-6. 
-7. Debug your hardware like you've never done before :)
+6. Debug your hardware like you've never done before :)
